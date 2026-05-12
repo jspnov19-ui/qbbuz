@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Join Game</title>
+</head>
+<body>
+
+<h2>Join Game</h2>
+
+<input id="code" placeholder="Room Code">
+<input id="name" placeholder="Your Name">
+
+<button onclick="join()">Join</button>
+
+<script type="module">
+import { supabase } from "./supabase.js";
+
+window.join = async function () {
+  const code = document.getElementById("code").value;
+  const name = document.getElementById("name").value;
+
+  await supabase.from("players").insert({
+    game_id: code,
+    name: name,
+    team: "A",
+    score: 0
+  });
+
+  localStorage.setItem("game", code);
+  localStorage.setItem("name", name);
+
+  location.href = "game.html";
+};
+</script>
+
+</body>
+</html>

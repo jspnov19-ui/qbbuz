@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game</title>
+</head>
+<body>
+
+<h2>Game Room</h2>
+
+<h3 id="status">Loading...</h3>
+
+<button id="buzz">BUZZ</button>
+
+<div id="info"></div>
+
+<script type="module">
+import { supabase } from "./supabase.js";
+
+const game = localStorage.getItem("game");
+const name = localStorage.getItem("name");
+
+const buzzBtn = document.getElementById("buzz");
+const status = document.getElementById("status");
+
+async function loadState() {
+  const { data } = await supabase
+    .from("games")
+    .select("*")
+    .eq("id", game)
+    .single();
+
+  if (data.buzz_locked) {
+    status.innerText = "Buzzed: " + data.current_buzzer;
+    buzzBtn.disabled = true;
+  } else {
+    status.innerText = "Open to buzz";
+    buzzBtn.disabled = false;
+  }
+}
+
+buzzBtn.onclick = async () => {
+  const { data } = await supabase
+    .from("games")
+    .select("buzz_locked")
+    .eq("id", game)
+    .single();
+
+  if (!data.buzz_locked) {
+    await supabase.from("games")
+      .update({
+        buzz_locked: true,
+        current_buzzer: name
+      })
+      .eq("id", game);
+  }
+};
+
+// realtime sync
+supabase
+  .channel("game-room")
+  .on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "games",
+    filter: `id=eq.${game}`
+  }, loadState)
+  .subscribe();
+
+loadState();
+</script>
+
+</body>
+</html>
