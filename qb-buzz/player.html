@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>Player</h1>
+
+<div class="card">
+  <h2 id="status">Loading...</h2>
+
+  <button id="buzz" class="big-buzz">
+    BUZZ
+  </button>
+</div>
+
+<script type="module">
+import { supabase } from "./supabase.js";
+
+const room = localStorage.getItem("room");
+const name = localStorage.getItem("name");
+
+const buzzBtn = document.getElementById("buzz");
+const status = document.getElementById("status");
+
+async function refresh() {
+  const { data } = await supabase
+    .from("games")
+    .select("*")
+    .eq("id", room)
+    .single();
+
+  if (data.buzz_locked) {
+    status.innerText = "Buzzed: " + data.current_buzzer;
+    buzzBtn.disabled = true;
+    buzzBtn.style.background = "#64748b";
+  } else {
+    status.innerText = "Open to Buzz";
+    buzzBtn.disabled = false;
+  }
+}
+
+buzzBtn.onclick = async () => {
+  const { data } = await supabase
+    .from("games")
+    .select("buzz_locked")
+    .eq("id", room)
+    .single();
+
+  if (!data.buzz_locked) {
+    await supabase
+      .from("games")
+      .update({
+        buzz_locked: true,
+        current_buzzer: name
+      })
+      .eq("id", room);
+  }
+};
+
+supabase
+  .channel("game")
+  .on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "games",
+    filter: `id=eq.${room}`
+  }, refresh)
+  .subscribe();
+
+refresh();
+</script>
+
+</body>
+</html>
