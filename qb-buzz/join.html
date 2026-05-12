@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Join Game</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<h2>Join Game</h2>
+<h1>Join Game</h1>
 
-<input id="code" placeholder="Room Code">
-<input id="name" placeholder="Your Name">
+<div class="card">
+  <input id="code" placeholder="Room Code"><br><br>
+  <input id="name" placeholder="Your Name"><br><br>
 
-<button onclick="join()">Join</button>
+  <button class="primary" onclick="join()">Join</button>
+</div>
 
 <script type="module">
 import { supabase } from "./supabase.js";
@@ -21,15 +23,15 @@ window.join = async function () {
 
   await supabase.from("players").insert({
     game_id: code,
-    name: name,
+    name,
     team: "A",
     score: 0
   });
 
-  localStorage.setItem("game", code);
+  localStorage.setItem("room", code);
   localStorage.setItem("name", name);
 
-  location.href = "game.html";
+  location.href = "player.html";
 };
 </script>
 
