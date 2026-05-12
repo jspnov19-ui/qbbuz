@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>Moderator</h1>
+
+<div class="card">
+  <h2 id="room"></h2>
+  <h3 id="buzz"></h3>
+
+  <button class="danger" onclick="resetBuzz()">Reset Buzz</button>
+
+  <h3>Timer</h3>
+  <button onclick="updateTimer(-5)">-5s</button>
+  <button onclick="startTimer()">Start</button>
+  <button onclick="pauseTimer()">Pause</button>
+  <button onclick="updateTimer(5)">+5s</button>
+</div>
+
+<div class="card">
+  <h3>Players</h3>
+  <div id="players"></div>
+</div>
+
+<script type="module">
+import { supabase } from "./supabase.js";
+
+const room = localStorage.getItem("room");
+document.getElementById("room").innerText = "Room: " + room;
+
+async function loadGame() {
+  const { data } = await supabase
+    .from("games")
+    .select("*")
+    .eq("id", room)
+    .single();
+
+  document.getElementById("buzz").innerText =
+    data.buzz_locked ? "Buzz: " + data.current_buzzer : "No buzz";
+}
+
+async function loadPlayers() {
+  const { data } = await supabase
+    .from("players")
+    .select("*")
+    .eq("game_id", room);
+
+  const div = document.getElementById("players");
+  div.innerHTML = "";
+
+  data.forEach(p => {
+    div.innerHTML += `
+      <p>
+        ${p.name} (${p.score})
+        <button onclick="addScore('${p.name}',10)">+10</button>
+        <button onclick="addScore('${p.name}',-10)">-10</button>
+      </p>
+    `;
+  });
+}
+
+window.addScore = async (name, val) => {
+  const { data } = await supabase
+    .from("players")
+    .select("score")
+    .eq("name", name)
+    .single();
+
+  await supabase
+    .from("players")
+    .update({ score: data.score + val })
+    .eq("name", name);
+};
+
+window.resetBuzz = async () => {
+  await supabase
+    .from("games")
+    .update({
+      buzz_locked: false,
+      current_buzzer: null
+    })
+    .eq("id", room);
+};
+
+window.updateTimer = async (delta) => {
+  const { data } = await supabase
+    .from("games")
+    .select("timer_seconds")
+    .eq("id", room)
+    .single();
+
+  await supabase
+    .from("games")
+    .update({
+      timer_seconds: data.timer_seconds + delta
+    })
+    .eq("id", room);
+};
+
+function refreshAll() {
+  loadGame();
+  loadPlayers();
+}
+
+supabase
+  .channel("game")
+  .on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "games"
+  }, refreshAll)
+  .on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "players"
+  }, refreshAll)
+  .subscribe();
+
+refreshAll();
+</script>
+
+</body>
+</html>
